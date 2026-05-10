@@ -2,7 +2,13 @@ chrome.action.onClicked.addListener((tab) => {
   chrome.scripting
     .executeScript({
       target: { tabId: tab.id },
-      files: ["content.js"],
+      files: [
+        "content/displayHistory.js",
+        "content/extractTextTags.js",
+        "content/main.js",
+        "content/paint.js",
+        "content/util.js",
+      ],
     })
     .catch((err) => console.error("Injection failed:", err));
 });
@@ -53,6 +59,7 @@ chrome.runtime.onMessage.addListener(
           text_tag_pairs: message.text_tag_pairs,
           startOffset: message.startOffset,
           endOffset: message.endOffset,
+          color: message.color,
         }),
       })
         .then((response) => {
