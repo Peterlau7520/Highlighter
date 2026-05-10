@@ -15,7 +15,7 @@ services:
       target: dev
     volumes:
       - .:/usr/src/app
-      # - /usr/src/app/node_modules # don't let host node_modules shadow the container's; becareful when adding new packages
+      # - /usr/src/app/node_modules # don't let host node_modules shadow the container's; be careful when adding new packages
 
     container_name: highlighter-dev
     env_file:

@@ -56,17 +56,20 @@ app.get("/highlights", async (req, res) => {
 app.post("/addhighlight", async (req, res) => {
   try {
     console.log("hit add highlights route", req.body);
-    const { text, url, tag, text_tag_pairs } = req.body;
+    const { text, url, tag, text_tag_pairs, startOffset, endOffset } = req.body;
 
     const result = await db.collection("highlights").insertOne({
       text: text,
       url: url,
       tag: tag,
       text_tag_pairs: text_tag_pairs,
+      startOffset: startOffset,
+      endOffset: endOffset,
     });
 
     res.json(result);
   } catch (err) {
+    console.log("add highlight err", err);
     res.status(500).json({ error: err.message });
   }
 });

@@ -51,10 +51,13 @@ chrome.runtime.onMessage.addListener(
           text: message.text,
           tag: message.tag,
           text_tag_pairs: message.text_tag_pairs,
+          startOffset: message.startOffset,
+          endOffset: message.endOffset,
         }),
       })
         .then((response) => {
           // Check if the request was successful
+          console.log("response", response);
           if (!response.ok) {
             throw new Error("Network response was not ok");
           }
