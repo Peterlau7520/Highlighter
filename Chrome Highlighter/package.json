@@ -1,0 +1,15 @@
+{
+  "name": "chrome-highlighter",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc && npm run copy-assets",
+    "copy-assets": "mkdir -p dist/popups dist/icons && cp manifest.json dist/ && cp icons/* dist/icons/ && cp popups/popup.html dist/popups/",
+    "watch": "tsc --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.320",
+    "typescript": "^5.8.3"
+  }
+}

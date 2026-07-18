@@ -1,22 +1,39 @@
-### Building and running your application
+# Backend — Docker
 
-When you're ready, start your application by running:
-`docker compose up --build`.
+## Running locally
 
-Your application will be available at http://localhost:3000.
+Start the backend (Express + MongoDB) with:
 
-### Deploying your application to the cloud
+```bash
+docker compose up --build
+```
 
-First, build your image, e.g.: `docker build -t myapp .`.
-If your cloud uses a different CPU architecture than your development
-machine (e.g., you are on a Mac M1 and your cloud provider is amd64),
-you'll want to build the image for that platform, e.g.:
-`docker build --platform=linux/amd64 -t myapp .`.
+The API will be available at `http://localhost:3000`.
 
-Then, push it to your registry, e.g. `docker push myregistry.com/myapp`.
+The extension's `lib/auth.ts` and `background.ts` are both hardcoded to
+`http://localhost:3000` — no config needed for local development.
 
-Consult Docker's [getting started](https://docs.docker.com/go/get-started-sharing/)
-docs for more detail on building and pushing.
+## Environment variables
 
-### References
-* [Docker's Node.js guide](https://docs.docker.com/language/nodejs/)
+Create a `backend/.env` file before starting (never commit it):
+
+```
+MONGO_URI=mongodb://...
+JWT_SECRET=your-secret-here
+PORT=3000
+```
+
+## Building for deployment
+
+```bash
+# Match your cloud provider's CPU architecture (e.g. amd64 on a Mac M-series):
+docker build --platform=linux/amd64 -t chrome-highlighter-backend .
+
+docker push myregistry.com/chrome-highlighter-backend
+```
+
+See Docker's [getting started](https://docs.docker.com/go/get-started-sharing/) docs for registry details.
+
+## References
+
+- [Docker's Node.js guide](https://docs.docker.com/language/nodejs/)

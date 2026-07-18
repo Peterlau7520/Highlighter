@@ -10,9 +10,9 @@ function/route also has a JSDoc comment in-source (hover it in VS Code,
 | Function / Route | Purpose | Called by |
 |---|---|---|
 | `connectDB()` | Connects to MongoDB (`MONGO_URI`), assigns the `highlighter` db to module-level `db` | startup (bottom of `index.js`, before `app.listen`) |
-| `POST /auth/google` | Verifies a Google access token, upserts a `users` document, mints a 7-day session JWT | `lib/auth.js`'s `exchangeGoogleToken` (extension) |
-| `GET /highlights` | Returns the signed-in user's saved highlights for a page, matched by substring either direction against the stored `url`. Requires `requireAuth`. | `background.js`'s `get_highlights` listener |
-| `POST /addhighlight` | Inserts one highlight document, tagged with `req.userId`, into the `highlights` collection. Requires `requireAuth`. | `background.js`'s `add_highlights` listener |
+| `POST /auth/google` | Verifies a Google access token, upserts a `users` document, mints a 7-day session JWT | `lib/auth.ts`'s `exchangeGoogleToken` (extension) |
+| `GET /highlights` | Returns the signed-in user's saved highlights for a page, matched by substring either direction against the stored `url`. Requires `requireAuth`. | `background.ts`'s `handleGetHighlights` |
+| `POST /addhighlight` | Inserts one highlight document, tagged with `req.userId`, into the `highlights` collection. Requires `requireAuth`. | `background.ts`'s `handleAddHighlights` |
 | `verifyGoogleToken(accessToken)` (`auth.js`) | Calls Google's userinfo endpoint to verify the token and get `{sub, email, name, picture}` | `POST /auth/google` |
 | `issueSession(user)` (`auth.js`) | Signs a 7-day session JWT (`{sub, email}`) with `JWT_SECRET` | `POST /auth/google` |
 | `requireAuth` middleware (`auth.js`) | Verifies the `Authorization: Bearer <jwt>` header, sets `req.userId`, else `401` | `GET /highlights`, `POST /addhighlight` |
@@ -21,9 +21,9 @@ function/route also has a JSDoc comment in-source (hover it in VS Code,
 
 ```mermaid
 sequenceDiagram
-    participant PU as popup.js
+    participant PU as popup.ts
     participant CS as Content script
-    participant BG as background.js
+    participant BG as background.ts
     participant API as backend/index.js
     participant G as Google Identity
     participant DB as MongoDB
@@ -62,16 +62,15 @@ sequenceDiagram
 
 - No `PUT`/`DELETE` routes yet — highlights can be created and read, not
   updated or removed (see the `//update highlights` / `//edit or delete
-  highlights` TODO comments in `background.js`).
+  highlights` TODO comments in `background.ts`).
 - `MONGO_URI`, `PORT`, and `JWT_SECRET` are read from `.env` (`dotenv`) —
   not committed to the repo, so a missing `.env` will fail `connectDB()` /
   `requireAuth` at startup or on first request.
-- The `tag` field accepted by `POST /addhighlight` is never actually sent by
-  `background.js`'s `add_highlights` listener — it's always `undefined` in
-  practice.
+- The `tag` field accepted by `POST /addhighlight` is optional in the
+  `AddHighlightsMessage` type — it may be `undefined` in practice.
 - Session model: the extension never sends the Google access token to
   `/highlights` or `/addhighlight` — only the backend-issued JWT from
   `/auth/google`. Google is only contacted at sign-in / silent-refresh time,
-  not on every highlight save (see `Chrome Highlighter/lib/auth.js`).
+  not on every highlight save (see `Chrome Highlighter/lib/auth.ts`).
 - `req.userId` (the Google `sub`) is the sole source of truth for who owns a
   highlight — nothing client-supplied is trusted for that.

@@ -15,19 +15,13 @@
   "content_scripts": [
     {
       "matches": ["https://*/*", "http://localhost/*"],
-      "js": [
-        "content/util.js",
-        "content/extractTextTags.js",
-        "content/paint.js",
-        "content/main.js",
-        "content/displayHistory.js"
-      ]
+      "js": ["content/main.js", "content/displayHistory.js"],
+      "type": "module"
     }
   ],
   "action": {
     "default_title": "Highlighter",
     "default_popup": "popups/popup.html",
-
     "default_icon": {
       "32": "icons/32.png",
       "72": "icons/72.png",
