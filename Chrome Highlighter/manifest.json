@@ -3,12 +3,30 @@
   "version": "1.0",
   "description": "Use the extended context menu to highlight text",
   "manifest_version": 3,
-  "permissions": ["activeTab", "scripting", "tabs"],
-  "background": {
-    "service_worker": "background.js"
+  "permissions": ["activeTab", "scripting", "tabs", "identity", "storage"],
+  "oauth2": {
+    "client_id": "797907980884-989efo9soh4es3hjpfvolnk1k1idr4n9.apps.googleusercontent.com",
+    "scopes": ["openid", "email", "profile"]
   },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*/*", "http://localhost/*"],
+      "js": [
+        "content/util.js",
+        "content/extractTextTags.js",
+        "content/paint.js",
+        "content/main.js",
+        "content/displayHistory.js"
+      ]
+    }
+  ],
   "action": {
     "default_title": "Highlighter",
+    "default_popup": "popups/popup.html",
 
     "default_icon": {
       "32": "icons/32.png",
