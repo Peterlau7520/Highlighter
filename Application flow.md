@@ -8,7 +8,7 @@
 - **Content scripts**: injected into every `https://*` and `http://localhost/*` page as ES modules. Only the two entry points are listed — they import the rest:
   1. `content/main.js` — user interaction (selection, tooltip)
   2. `content/displayHistory.js` — restores saved highlights on page load
-  - *(imported by the entry points: `util.js`, `extractTextTags.js`, `paint.js`)*
+  - _(imported by the entry points: `util.js`, `extractTextTags.js`, `paint.js`)_
 - **Permissions**: `activeTab`, `scripting`, `tabs`, `identity` (Google OAuth), `storage`
 - **OAuth2**: Google client ID with `openid`, `email`, `profile` scopes
 
@@ -129,16 +129,16 @@ background.ts: add_highlights handler
 
 ## 4. Auth Flow Details (`lib/auth.ts`)
 
-| Function | Signature | What it does |
-|---|---|---|
-| `getSession` | `() => Promise<Session \| null>` | Reads `{ sessionToken, expiresAt, user }` from `chrome.storage.local`, or null |
-| `saveSession` | `(session: Session) => Promise<void>` | Writes session to `chrome.storage.local` |
-| `clearSession` | `() => Promise<void>` | Removes session from storage |
-| `getGoogleAuthToken` | `(interactive: boolean) => Promise<string \| null>` | Promisified `chrome.identity.getAuthToken`; `false` = silent (no UI), `true` = shows Google consent screen |
-| `exchangeGoogleToken` | `(googleAccessToken: string) => Promise<Session>` | `POST /auth/google` with the Google token → backend returns `Session`, saved to storage |
-| `ensureFreshSession` | `() => Promise<Session \| null>` | Cache → silent refresh if missing/near-expiry → return session or null |
-| `signInInteractive` | `() => Promise<Session>` | Interactive sign-in (must be called from a real user gesture, e.g. popup button) |
-| `signOut` | `() => Promise<void>` | `chrome.identity.clearAllCachedAuthTokens()` + `clearSession()` |
+| Function              | Signature                                           | What it does                                                                                               |
+| --------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `getSession`          | `() => Promise<Session \| null>`                    | Reads `{ sessionToken, expiresAt, user }` from `chrome.storage.local`, or null                             |
+| `saveSession`         | `(session: Session) => Promise<void>`               | Writes session to `chrome.storage.local`                                                                   |
+| `clearSession`        | `() => Promise<void>`                               | Removes session from storage                                                                               |
+| `getGoogleAuthToken`  | `(interactive: boolean) => Promise<string \| null>` | Promisified `chrome.identity.getAuthToken`; `false` = silent (no UI), `true` = shows Google consent screen |
+| `exchangeGoogleToken` | `(googleAccessToken: string) => Promise<Session>`   | `POST /auth/google` with the Google token → backend returns `Session`, saved to storage                    |
+| `ensureFreshSession`  | `() => Promise<Session \| null>`                    | Cache → silent refresh if missing/near-expiry → return session or null                                     |
+| `signInInteractive`   | `() => Promise<Session>`                            | Interactive sign-in (must be called from a real user gesture, e.g. popup button)                           |
+| `signOut`             | `() => Promise<void>`                               | `chrome.identity.clearAllCachedAuthTokens()` + `clearSession()`                                            |
 
 **Session expiry skew**: `REFRESH_SKEW_MS = 5 minutes` — sessions are treated as expired 5 minutes early to avoid requests being rejected mid-flight.
 
@@ -150,20 +150,20 @@ background.ts: add_highlights handler
 
 ### Source (`Chrome Highlighter/`)
 
-| File | Role |
-|---|---|
-| `manifest.json` | Extension config, permissions, script declarations |
-| `types.ts` | Shared TypeScript interfaces: `Session`, `GoogleUser`, `TextTagPair`, `TextNodeEntry`, `HighlightRecord`, message/response union types |
-| `background.ts` | Service worker; handles `get_highlights` and `add_highlights` messages |
-| `lib/auth.ts` | Session management (cache, silent refresh, interactive sign-in) |
-| `content/displayHistory.ts` | Entry point — on-load: fetches and re-applies saved highlights to the DOM |
-| `content/main.ts` | Entry point — mouse selection listener; shows/removes color-picker tooltip |
-| `content/paint.ts` | `highlight()`: applies DOM highlight + sends `add_highlights` to background |
-| `content/extractTextTags.ts` | `extractTextTagPairs()`: extracts `TextTagPair[]` and offsets from a DOM `Range` |
-| `content/util.ts` | `indexOfAll()`: finds all indices of a substring in a string |
-| `popups/popup.ts` | Sign-in / sign-out UI (opened on first install or badge click) |
-| `popups/popup.html` | Popup HTML shell |
-| `backend/index.js` | Node/Express backend — `GET /highlights`, `POST /addhighlight`, `POST /auth/google` |
+| File                         | Role                                                                                                                                   |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `manifest.json`              | Extension config, permissions, script declarations                                                                                     |
+| `types.ts`                   | Shared TypeScript interfaces: `Session`, `GoogleUser`, `TextTagPair`, `TextNodeEntry`, `HighlightRecord`, message/response union types |
+| `background.ts`              | Service worker; handles `get_highlights` and `add_highlights` messages                                                                 |
+| `lib/auth.ts`                | Session management (cache, silent refresh, interactive sign-in)                                                                        |
+| `content/displayHistory.ts`  | Entry point — on-load: fetches and re-applies saved highlights to the DOM                                                              |
+| `content/main.ts`            | Entry point — mouse selection listener; shows/removes color-picker tooltip                                                             |
+| `content/paint.ts`           | `highlight()`: applies DOM highlight + sends `add_highlights` to background                                                            |
+| `content/extractTextTags.ts` | `extractTextTagPairs()`: extracts `TextTagPair[]` and offsets from a DOM `Range`                                                       |
+| `content/util.ts`            | `indexOfAll()`: finds all indices of a substring in a string                                                                           |
+| `popups/popup.ts`            | Sign-in / sign-out UI (opened on first install or badge click)                                                                         |
+| `popups/popup.html`          | Popup HTML shell                                                                                                                       |
+| `backend/index.js`           | Node/Express backend — `GET /highlights`, `POST /addhighlight`, `POST /auth/google`                                                    |
 
 ### Compiled output (`Chrome Highlighter/dist/`)
 
@@ -187,13 +187,13 @@ service worker does, so those two entry points (plus everything they
 import — `util.ts`, `extractTextTags.ts`, `paint.ts`) are bundled into
 self-contained, import-free files with `esbuild` instead.
 
-| Command | What it does |
-|---|---|
-| `npm run build` | Full build: `tsc` (type-checks + emits background/lib/popup/types), then `bundle-content` (esbuild-bundles the two content-script entry points), then `copy-assets` (copies `manifest.json`, `icons/`, `popup.html` into `dist/`) |
-| `npm run bundle-content` | Just the esbuild step — rebundles `content/main.ts` + `content/displayHistory.ts` into `dist/content/*.js` |
-| `npm run copy-assets` | Just the static-asset copy (`scripts/copy-assets.js`) |
-| `npm run watch` | `tsc --watch` only — recompiles `background.ts`/`lib/auth.ts`/`popups/popup.ts` on save |
-| `npm run typecheck` | Type-checks without emitting — fast check before committing |
+| Command                  | What it does                                                                                                                                                                                                                      |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run build`          | Full build: `tsc` (type-checks + emits background/lib/popup/types), then `bundle-content` (esbuild-bundles the two content-script entry points), then `copy-assets` (copies `manifest.json`, `icons/`, `popup.html` into `dist/`) |
+| `npm run bundle-content` | Just the esbuild step — rebundles `content/main.ts` + `content/displayHistory.ts` into `dist/content/*.js`                                                                                                                        |
+| `npm run copy-assets`    | Just the static-asset copy (`scripts/copy-assets.js`)                                                                                                                                                                             |
+| `npm run watch`          | `tsc --watch` only — recompiles `background.ts`/`lib/auth.ts`/`popups/popup.ts` on save                                                                                                                                           |
+| `npm run typecheck`      | Type-checks without emitting — fast check before committing                                                                                                                                                                       |
 
 > **Watch-mode gotcha:** `npm run watch` does **not** re-run `bundle-content`.
 > If you're editing `content/main.ts`, `content/displayHistory.ts`, or
@@ -203,6 +203,7 @@ self-contained, import-free files with `esbuild` instead.
 > changes.
 
 **Prerequisites (one-time):**
+
 - A Google Cloud OAuth 2.0 Client ID, type **Chrome Extension**, using this
   extension's ID (visible on `chrome://extensions` once loaded unpacked).
   Set it as `oauth2.client_id` in `manifest.json` — sign-in won't work
@@ -212,6 +213,7 @@ self-contained, import-free files with `esbuild` instead.
   highlight action fails silently with `auth_required`.
 
 **First-time setup:**
+
 ```bash
 cd "Chrome Highlighter"
 npm install
@@ -219,18 +221,20 @@ npm run build
 ```
 
 **Loading in Chrome:**
+
 1. Go to `chrome://extensions`
 2. Enable **Developer mode** (top-right toggle)
 3. Click **Load unpacked** → select `Chrome Highlighter/dist/`
 
 **Iterating:**
+
 - Run `npm run watch` in a terminal while working (remember the watch-mode
   gotcha above if you're touching content scripts)
 - After each rebuild, click the **reload icon** on the extension card in
   `chrome://extensions`
 - Then **fully reload** (F5) any tab you're testing in — an already-open
-  tab keeps running whatever content script was injected into it *before*
+  tab keeps running whatever content script was injected into it _before_
   the extension reload, so a page refresh alone isn't enough, and neither
-  is an extension reload alone
+  is an extension reload alon
 - Background script changes also require clicking **Service worker** →
   **Stop** → reload
