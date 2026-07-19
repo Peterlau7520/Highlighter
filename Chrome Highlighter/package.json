@@ -3,13 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "tsc && npm run copy-assets",
-    "copy-assets": "mkdir -p dist/popups dist/icons && cp manifest.json dist/ && cp icons/* dist/icons/ && cp popups/popup.html dist/popups/",
+    "build": "tsc && npm run bundle-content && npm run copy-assets",
+    "bundle-content": "esbuild content/main.ts content/displayHistory.ts --bundle --format=iife --outdir=dist/content",
+    "copy-assets": "node scripts/copy-assets.js",
     "watch": "tsc --watch",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.320",
+    "esbuild": "^0.28.1",
     "typescript": "^5.8.3"
   }
 }

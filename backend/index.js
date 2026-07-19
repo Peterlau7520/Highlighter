@@ -1,4 +1,3 @@
-console.log("running this script in docker");
 const express = require("express");
 const cors = require("cors");
 // exports = module.exports = createApplication;

@@ -32,16 +32,20 @@ async function exchangeGoogleToken(
   return session;
 }
 
-function getGoogleAuthToken(interactive: boolean): Promise<string | null> {
-  return new Promise((resolve) => {
-    chrome.identity.getAuthToken({ interactive }, (result) => {
-      if (chrome.runtime.lastError || !result?.token) {
-        resolve(null);
-        return;
-      }
-      resolve(result.token);
-    });
-  });
+async function getGoogleAuthToken(
+  interactive: boolean,
+): Promise<string | null> {
+  // Deliberately using the Promise overload (not the callback one): Chrome's
+  // docs note the callback form passes token/grantedScopes as two separate
+  // arguments, which @types/chrome models incorrectly as a single
+  // `{token, grantedScopes}` object — the Promise form's resolved shape has
+  // no such ambiguity.
+  try {
+    const result = await chrome.identity.getAuthToken({ interactive });
+    return result.token ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function ensureFreshSession(): Promise<Session | null> {

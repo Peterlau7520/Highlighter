@@ -101,6 +101,8 @@ function highlight_text_tag_pairs(
           if (parent) parent.style.backgroundColor = color;
         }
 
+        // wrap the whole range with tooltip..
+
         break;
       }
     }

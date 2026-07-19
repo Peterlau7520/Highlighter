@@ -173,13 +173,43 @@ Mirrors the source structure. Load this folder in Chrome — do not edit files h
 
 ## 6. Development Workflow
 
-Source files are TypeScript. Chrome loads the compiled JavaScript from `dist/`.
+Source files are TypeScript. Chrome loads the compiled/bundled JavaScript
+from `dist/` — **never edit files inside `dist/` directly**, they're
+overwritten on every build.
+
+`background.ts`, `lib/auth.ts`, `popups/popup.ts`, and `types.ts` are
+compiled by `tsc` as plain ES modules (both the service worker and
+`popup.html`'s `<script type="module">` support real `import`/`export`
+natively, so no bundling is needed there). `content/main.ts` and
+`content/displayHistory.ts` are different: Chrome's static
+`content_scripts` array does **not** support ES modules the way the
+service worker does, so those two entry points (plus everything they
+import — `util.ts`, `extractTextTags.ts`, `paint.ts`) are bundled into
+self-contained, import-free files with `esbuild` instead.
 
 | Command | What it does |
 |---|---|
-| `npm run build` | Compiles TypeScript → `dist/`, then copies `manifest.json`, icons, and `popup.html` |
-| `npm run watch` | Recompiles automatically on every file save (no asset copy — run build once first) |
+| `npm run build` | Full build: `tsc` (type-checks + emits background/lib/popup/types), then `bundle-content` (esbuild-bundles the two content-script entry points), then `copy-assets` (copies `manifest.json`, `icons/`, `popup.html` into `dist/`) |
+| `npm run bundle-content` | Just the esbuild step — rebundles `content/main.ts` + `content/displayHistory.ts` into `dist/content/*.js` |
+| `npm run copy-assets` | Just the static-asset copy (`scripts/copy-assets.js`) |
+| `npm run watch` | `tsc --watch` only — recompiles `background.ts`/`lib/auth.ts`/`popups/popup.ts` on save |
 | `npm run typecheck` | Type-checks without emitting — fast check before committing |
+
+> **Watch-mode gotcha:** `npm run watch` does **not** re-run `bundle-content`.
+> If you're editing `content/main.ts`, `content/displayHistory.ts`, or
+> anything they import (`paint.ts`, `extractTextTags.ts`, `util.ts`),
+> `npm run watch` alone will silently leave `dist/content/*.js` stale — run
+> `npm run build` (or at least `npm run bundle-content`) to pick up those
+> changes.
+
+**Prerequisites (one-time):**
+- A Google Cloud OAuth 2.0 Client ID, type **Chrome Extension**, using this
+  extension's ID (visible on `chrome://extensions` once loaded unpacked).
+  Set it as `oauth2.client_id` in `manifest.json` — sign-in won't work
+  without it.
+- The backend must be running (see `backend/README.Docker.md`) — both
+  saving and loading highlights go through it, and without it every
+  highlight action fails silently with `auth_required`.
 
 **First-time setup:**
 ```bash
@@ -194,6 +224,13 @@ npm run build
 3. Click **Load unpacked** → select `Chrome Highlighter/dist/`
 
 **Iterating:**
-- Run `npm run watch` in a terminal while working
-- After each recompile, click the **reload icon** on the extension card in `chrome://extensions`
-- Background script changes also require clicking **Service worker** → **Stop** → reload
+- Run `npm run watch` in a terminal while working (remember the watch-mode
+  gotcha above if you're touching content scripts)
+- After each rebuild, click the **reload icon** on the extension card in
+  `chrome://extensions`
+- Then **fully reload** (F5) any tab you're testing in — an already-open
+  tab keeps running whatever content script was injected into it *before*
+  the extension reload, so a page refresh alone isn't enough, and neither
+  is an extension reload alone
+- Background script changes also require clicking **Service worker** →
+  **Stop** → reload
