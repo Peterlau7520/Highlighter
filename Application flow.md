@@ -115,6 +115,27 @@ background.ts                          lib/urlChange.ts              displayHist
       |                                      |          displayHighlightHistory()  [re-runs §2 flow]
 ```
 
+**Why `chrome.tabs.sendMessage`, not `chrome.runtime.sendMessage`?**
+Everywhere else in this codebase, messages flow *content script → background*
+(`get_highlights`, `add_highlights`), using `chrome.runtime.sendMessage` from
+the content script. This is the first case that needs the opposite
+direction: *background → a specific tab's content script*.
+`chrome.runtime.sendMessage` only reaches other extension contexts (popup,
+other background listeners) — it has no way to target a content script
+running in a particular tab's page. `chrome.tabs.sendMessage(tabId, message)`
+is the API built for exactly that: deliver a message into the content
+script(s) (`main.js` and `displayHistory.js`, following the content
+script(s) declared in `manifest.json`) injected in one specific tab,
+identified by `tabId`. That id comes for free from the triggering event —
+`details.tabId` on the `onHistoryStateUpdated` callback already tells us
+which tab navigated, so there's no lookup needed to know where to send it.
+
+The `.catch(() => {})` exists because `chrome.tabs.sendMessage` rejects
+when there's no listener on the other end — e.g. the tab that navigated
+isn't one our content script was ever injected into (a non-matching
+origin, or a `chrome://` page). That's a normal, expected outcome of
+listening broadly for navigations across all tabs, not a bug to surface.
+
 No changes to `main.ts`, `paint.ts`, the matching algorithm, or the
 backend — this is purely "notice the URL changed, re-run the existing
 loader."

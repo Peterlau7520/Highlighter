@@ -25,6 +25,7 @@ chrome.runtime.onInstalled.addListener(({ reason }) => {
 chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
   if (!shouldNotifyUrlChange(details)) return;
   const message: UrlChangedMessage = { type: "url_changed", url: details.url };
+  //chrome.tabs.sendMessage -> sending messages to the content script;
   chrome.tabs.sendMessage(details.tabId, message).catch(() => {
     // No content script in this tab (e.g. non-matching origin) — expected, not an error.
   });
@@ -64,7 +65,9 @@ function handleGetHighlights(
       clearAuthBadge();
       senderResponse({ highlights: data });
     } catch (err) {
-      senderResponse({ error: err instanceof Error ? err.message : String(err) });
+      senderResponse({
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   })();
   return true;
@@ -106,7 +109,9 @@ function handleAddHighlights(
       clearAuthBadge();
       senderResponse({ highlight: data });
     } catch (err) {
-      senderResponse({ error: err instanceof Error ? err.message : String(err) });
+      senderResponse({
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   })();
   return true;
