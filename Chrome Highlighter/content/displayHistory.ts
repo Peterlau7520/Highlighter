@@ -1,5 +1,11 @@
 import type { HighlightRecord, GetHighlightsResponse } from "../types.js";
 import { indexOfAll } from "./util.js";
+import { isUrlChangedMessage } from "../lib/urlChange.js";
+
+// SPA frameworks typically finish updating the DOM asynchronously *after*
+// the URL changes, so wait briefly before re-scanning the page (main.ts's
+// mouseup handler has the same "let the page settle" pattern).
+const SPA_RENDER_SETTLE_MS = 300;
 
 async function displayHighlightHistory(): Promise<void> {
   console.log("sending message");
@@ -108,5 +114,13 @@ function highlight_text_tag_pairs(
     }
   }
 }
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (!isUrlChangedMessage(message)) return;
+  console.log("url changed (SPA navigation), re-rendering highlights for", message.url);
+  setTimeout(() => {
+    displayHighlightHistory();
+  }, SPA_RENDER_SETTLE_MS);
+});
 
 displayHighlightHistory();

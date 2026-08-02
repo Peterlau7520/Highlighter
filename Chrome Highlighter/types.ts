@@ -37,6 +37,11 @@ export type GetHighlightsMessage = {
   url: string;
 };
 
+export type UrlChangedMessage = {
+  type: "url_changed";
+  url: string;
+};
+
 export type AddHighlightsMessage = {
   type: "add_highlights";
   url: string;

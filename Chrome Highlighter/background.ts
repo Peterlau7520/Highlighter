@@ -1,9 +1,11 @@
 import { ensureFreshSession } from "./lib/auth.js";
+import { shouldNotifyUrlChange } from "./lib/urlChange.js";
 import type {
   GetHighlightsMessage,
   GetHighlightsResponse,
   AddHighlightsMessage,
   AddHighlightsResponse,
+  UrlChangedMessage,
 } from "./types.js";
 
 console.log("loaded");
@@ -12,6 +14,20 @@ chrome.runtime.onInstalled.addListener(({ reason }) => {
   if (reason === "install") {
     chrome.tabs.create({ url: chrome.runtime.getURL("popups/popup.html") });
   }
+});
+
+/**
+ * SPA (same-document) navigations — e.g. clicking an in-app link on a site
+ * using history.pushState/replaceState routing — don't re-inject content
+ * scripts, so displayHistory.ts never gets a chance to re-run on its own.
+ * This forwards a url_changed message so it can.
+ */
+chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
+  if (!shouldNotifyUrlChange(details)) return;
+  const message: UrlChangedMessage = { type: "url_changed", url: details.url };
+  chrome.tabs.sendMessage(details.tabId, message).catch(() => {
+    // No content script in this tab (e.g. non-matching origin) — expected, not an error.
+  });
 });
 
 function clearAuthBadge(): void {

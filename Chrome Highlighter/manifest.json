@@ -3,7 +3,7 @@
   "version": "1.0",
   "description": "Use the extended context menu to highlight text",
   "manifest_version": 3,
-  "permissions": ["activeTab", "scripting", "tabs", "identity", "storage"],
+  "permissions": ["activeTab", "scripting", "tabs", "identity", "storage", "webNavigation"],
   "oauth2": {
     "client_id": "797907980884-989efo9soh4es3hjpfvolnk1k1idr4n9.apps.googleusercontent.com",
     "scopes": ["openid", "email", "profile"]

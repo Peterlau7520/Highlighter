@@ -9,7 +9,7 @@
   1. `content/main.js` — user interaction (selection, tooltip)
   2. `content/displayHistory.js` — restores saved highlights on page load
   - _(imported by the entry points: `util.js`, `extractTextTags.js`, `paint.js`)_
-- **Permissions**: `activeTab`, `scripting`, `tabs`, `identity` (Google OAuth), `storage`
+- **Permissions**: `activeTab`, `scripting`, `tabs`, `identity` (Google OAuth), `storage`, `webNavigation` (detects SPA URL changes — see §2b)
 - **OAuth2**: Google client ID with `openid`, `email`, `profile` scopes
 
 On first install, `background.js` opens `popups/popup.html` as a full tab so the user is immediately prompted to sign in.
@@ -70,6 +70,54 @@ Given a saved `HighlightRecord` `{ text_tag_pairs, startOffset, endOffset, color
 3. Scans for a run of consecutive nodes whose `textContent` + parent `tagName` matches `text_tag_pairs` in order.
 4. Wraps the first node slice and last node slice each in a `<span style="background-color: color">` via `Range.surroundContents()`.
 5. Sets `backgroundColor` directly on parent elements of any middle nodes.
+
+**Naturally idempotent**: once a text node is wrapped in a `<span>`, its
+parent tag becomes `SPAN`, which no longer matches the *originally
+recorded* tag in `text_tag_pairs`. So re-running this against already-
+highlighted content (e.g. a redundant SPA re-render, §2b below) safely
+no-ops instead of double-wrapping.
+
+---
+
+## 2b. Highlight History — Re-render on SPA Navigation
+
+Problem: `content_scripts` only inject on a real page load. Sites that
+route client-side (`history.pushState`/`replaceState` — clicking an in-app
+link on GitHub, Reddit, etc.) change the tab's URL without a real
+navigation, so the content script is never re-injected and
+`displayHighlightHistory()` (§2) never runs again for the new URL.
+
+Fix: `background.ts` listens for Chrome's own same-document-navigation
+event and tells the already-injected content script to re-run.
+
+```
+background.ts                          lib/urlChange.ts              displayHistory.ts
+      |                                      |                              |
+[chrome.webNavigation.onHistoryStateUpdated fires — SPA navigated]          |
+      |-- shouldNotifyUrlChange(details) -->|                              |
+      |     (frameId === 0? ignore iframes) |                              |
+      |<---------- true/false --------------|                              |
+      |                                      |                              |
+  [false: iframe] → no-op                    |                              |
+      |                                      |                              |
+  [true: top-level frame]                    |                              |
+      |-- chrome.tabs.sendMessage(tabId, { type: "url_changed", url }) ---->|
+      |   (rejection swallowed — tab has no content script, e.g.           |
+      |    non-matching origin — expected, not an error)                   |
+      |                                      |                              |
+      |                                      |         onMessage listener:  |
+      |                                      |<-- isUrlChangedMessage(msg) -|
+      |                                      |          true                |
+      |                                      |                    wait SPA_RENDER_SETTLE_MS (300ms)
+      |                                      |          — SPA frameworks re-render the DOM
+      |                                      |            asynchronously *after* the URL changes
+      |                                      |                              |
+      |                                      |          displayHighlightHistory()  [re-runs §2 flow]
+```
+
+No changes to `main.ts`, `paint.ts`, the matching algorithm, or the
+backend — this is purely "notice the URL changed, re-run the existing
+loader."
 
 ---
 
@@ -156,6 +204,7 @@ background.ts: add_highlights handler
 | `types.ts`                   | Shared TypeScript interfaces: `Session`, `GoogleUser`, `TextTagPair`, `TextNodeEntry`, `HighlightRecord`, message/response union types |
 | `background.ts`              | Service worker; handles `get_highlights` and `add_highlights` messages                                                                 |
 | `lib/auth.ts`                | Session management (cache, silent refresh, interactive sign-in)                                                                        |
+| `lib/urlChange.ts`           | `shouldNotifyUrlChange()` / `isUrlChangedMessage()` — pure helpers for SPA-navigation re-rendering (§2b). Has a co-located `.test.ts`. |
 | `content/displayHistory.ts`  | Entry point — on-load: fetches and re-applies saved highlights to the DOM                                                              |
 | `content/main.ts`            | Entry point — mouse selection listener; shows/removes color-picker tooltip                                                             |
 | `content/paint.ts`           | `highlight()`: applies DOM highlight + sends `add_highlights` to background                                                            |
@@ -194,6 +243,7 @@ self-contained, import-free files with `esbuild` instead.
 | `npm run copy-assets`    | Just the static-asset copy (`scripts/copy-assets.js`)                                                                                                                                                                             |
 | `npm run watch`          | `tsc --watch` only — recompiles `background.ts`/`lib/auth.ts`/`popups/popup.ts` on save                                                                                                                                           |
 | `npm run typecheck`      | Type-checks without emitting — fast check before committing                                                                                                                                                                       |
+| `npm test`               | Runs the [Vitest](https://vitest.dev) suite (`vitest run`) — currently covers `lib/urlChange.ts`'s pure helpers. Test files are co-located as `*.test.ts` next to their source                                                    |
 
 > **Watch-mode gotcha:** `npm run watch` does **not** re-run `bundle-content`.
 > If you're editing `content/main.ts`, `content/displayHistory.ts`, or
