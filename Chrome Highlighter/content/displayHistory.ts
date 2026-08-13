@@ -98,16 +98,16 @@ function highlight_text_tag_pairs(
           .slice(i, i + count)
           .map((node, k) => ({ node: node as Text, text: text_tag_pairs[k].text }));
 
-        const { startSpan, endSpan } = surroundContents(
+        const { startSpan, endSpan, middleElements } = surroundContents(
           matchedNodes,
           startOffset,
           endOffset,
           color,
         );
 
-        const triggers = [startSpan, endSpan];
-        triggers.forEach((span) => {
-          span.dataset.highlightId = element._id;
+        const triggers = [startSpan, endSpan, ...middleElements];
+        triggers.forEach((el) => {
+          el.dataset.highlightId = element._id;
         });
         attachNotePopover(triggers, element._id, element.note ?? "");
 
