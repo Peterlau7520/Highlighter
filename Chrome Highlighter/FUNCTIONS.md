@@ -10,8 +10,13 @@ the whole project.
 > service worker does, so only the two entry points are listed in
 > `manifest.json` (`content/main.js`, `content/displayHistory.js`) and they —
 > plus everything they import (`util.ts`, `extractTextTags.ts`, `paint.ts`,
-> `lib/urlChange.ts`) — are bundled into standalone, import-free files by
-> **esbuild** (`npm run bundle-content`), not by `tsc` itself.
+> `content/notePopover.ts`, `lib/urlChange.ts`, `lib/sanitizeNote.ts`, and
+> `sanitizeNote.ts`'s `dompurify` dependency) — are bundled into standalone,
+> import-free files by **esbuild** (`npm run bundle-content`), not by `tsc`
+> itself. This is also why each bundle is ~77kb rather than a few kb:
+> `dompurify` gets inlined into *both* entry-point bundles independently
+> (esbuild isn't code-splitting a shared chunk here — that would require ESM
+> output, which content scripts can't use).
 
 ## Chrome Extension Code Execution Order
 
@@ -35,8 +40,10 @@ dependencies; there is no shared global scope between them.
 | `background.ts` | `clearAuthBadge` | `() => void` | Clears the `"!"` toolbar badge after a successful request | — |
 | `background.ts` | `setAuthBadge` | `() => void` | Sets a red `"!"` badge nudging the user to re-sign-in | — |
 | `background.ts` | `onHistoryStateUpdated` listener | — | Fires on SPA (same-document) navigations, e.g. `history.pushState` link clicks. Forwards a `url_changed` message to the tab's content script so it can re-render highlights for the new URL | `shouldNotifyUrlChange`, `chrome.tabs.sendMessage` |
+| `background.ts` | `handleUpdateNote` | `(msg: UpdateNoteMessage, ...) => true` | Ensures a fresh session, then `PATCH /highlights/:id` with the sanitized note; responds `{error:"auth_required"}` + sets toolbar badge if not signed in | `ensureFreshSession`, backend API |
 | `lib/urlChange.ts` | `shouldNotifyUrlChange` | `(details: {frameId: number}) => boolean` | `frameId === 0` check — ignores iframe-internal navigations so only top-level URL changes trigger a re-render | — |
 | `lib/urlChange.ts` | `isUrlChangedMessage` | `(message: unknown) => message is UrlChangedMessage` | Type guard for the `url_changed` message shape | — |
+| `lib/sanitizeNote.ts` | `sanitizeNoteHtml` | `(html: string) => string` | DOMPurify sanitize, allowlisting only `b,strong,i,em,u,br,p,div,ul,ol,li` and no attributes. Called before saving a note and — the load-bearing call — before rendering one, since that's where script-execution risk actually lives | DOMPurify |
 | `lib/auth.ts` | `getSession` | `() => Promise<Session \| null>` | Reads `{sessionToken, expiresAt, user}` from `chrome.storage.local` | — |
 | `lib/auth.ts` | `saveSession` | `(session: Session) => Promise<void>` | Writes session to `chrome.storage.local` | — |
 | `lib/auth.ts` | `clearSession` | `() => Promise<void>` | Removes session from storage | — |
@@ -48,12 +55,13 @@ dependencies; there is no shared global scope between them.
 | `content/main.ts` | `mouseup` listener | — | Detects a text selection (2ms debounce) and shows the color-picker tooltip | `showTooltip`, `removeTooltip` |
 | `content/main.ts` | `showTooltip` | `(selection: Selection) => void` | Renders a floating 4-swatch color-picker near the selection start | `removeTooltip`, `highlight` |
 | `content/main.ts` | `removeTooltip` | `(where: string) => void` | Removes the tooltip element from the DOM | — |
-| `content/paint.ts` | `highlight` | `(range: Range, color: string) => void` | Applies the chosen color to the selection and sends it to the backend to be saved | `extractTextTagPairs`, `surroundContents`, background (`add_highlights`) |
-| `content/paint.ts` | `surroundContents` | `(text_nodes: TextNodeEntry[], startOffset: number, endOffset: number, color?: string) => void` | Wraps the selected text nodes in colored `<span>`s; sets `backgroundColor` on parent elements of middle nodes | — |
+| `content/paint.ts` | `highlight` | `(range: Range, color: string) => void` | Applies the chosen color to the selection, sends it to the backend to be saved, then — once the created record comes back with its `_id` — tags the spans with `data-highlight-id` and attaches a note popover | `extractTextTagPairs`, `surroundContents`, `attachNotePopover`, background (`add_highlights`) |
+| `content/paint.ts` | `surroundContents` | `(text_nodes: TextNodeEntry[], startOffset: number, endOffset: number, color?: string) => {startSpan, endSpan}` | Wraps the selected text nodes in colored `<span>`s (returning the two wrapping spans); sets `backgroundColor` on parent elements of middle nodes. Shared by `paint.ts`'s `highlight()` and `displayHistory.ts`'s `highlight_text_tag_pairs` — one place that creates highlight spans | — |
+| `content/notePopover.ts` | `attachNotePopover` | `(triggers: HTMLElement[], highlightId: string, initialNote: string) => void` | Hover-to-preview, click-to-edit note popover shared across a highlight's start/end spans. Edit mode: `contenteditable` + Bold/Italic/Underline toolbar (`execCommand`). Collapses and saves (via `update_note`) on `focusout`, not `mouseleave`, so clicking a toolbar button mid-edit doesn't prematurely collapse it | `sanitizeNoteHtml`, background (`update_note`) |
 | `content/extractTextTags.ts` | `extractTextTagPairs` | `(range: Range) => [TextTagPair[], TextNodeEntry[], number, number]` | Walks the range's text nodes, records `{text, tag}` pairs used to relocate the highlight on reload | — |
 | `content/util.ts` | `indexOfAll` | `(str: string, needle: string) => number[]` | Returns all non-overlapping match indices of `needle` in `str` | — |
 | `content/displayHistory.ts` | `displayHighlightHistory` | `() => Promise<void>` | Runs on injection, and again on every SPA URL change; fetches saved highlights for the page and re-applies them; silently skips on auth failure | background (`get_highlights`), `highlight_text_tag_pairs` |
-| `content/displayHistory.ts` | `highlight_text_tag_pairs` | `(element: HighlightRecord) => number \| undefined` | Re-locates one saved highlight's text/tag sequence on the page and re-wraps it in colored spans. Naturally idempotent: once a node is wrapped, its parent tag becomes `SPAN`, so re-running against already-highlighted content is a no-op instead of double-wrapping | `indexOfAll` |
+| `content/displayHistory.ts` | `highlight_text_tag_pairs` | `(element: HighlightRecord) => number \| undefined` | Re-locates one saved highlight's text/tag sequence, re-wraps it via the shared `surroundContents`, tags the spans with `data-highlight-id`, and attaches a note popover seeded with the saved `note`. Naturally idempotent: once a node is wrapped, its parent tag becomes `SPAN`, so re-running against already-highlighted content is a no-op instead of double-wrapping | `indexOfAll`, `surroundContents`, `attachNotePopover` |
 | `content/displayHistory.ts` | `onMessage` listener (`url_changed`) | — | On SPA navigation, waits `SPA_RENDER_SETTLE_MS` (300ms, for the framework's async re-render) then re-runs `displayHighlightHistory` | `isUrlChangedMessage`, `displayHighlightHistory` |
 
 ## Shared Types (`types.ts`)
@@ -64,18 +72,21 @@ dependencies; there is no shared global scope between them.
 | `Session` | `{ sessionToken: string; expiresAt: number; user: GoogleUser }` |
 | `TextTagPair` | `{ text: string; tag: string }` |
 | `TextNodeEntry` | `{ node: Text; text: string }` |
-| `HighlightRecord` | `{ id?, text, tag?, text_tag_pairs, startOffset, endOffset, color?, url? }` |
+| `HighlightRecord` | `{ _id, text, tag?, text_tag_pairs, startOffset, endOffset, color?, url?, note? }` |
 | `GetHighlightsMessage` | `{ type: "get_highlights"; url: string }` |
 | `UrlChangedMessage` | `{ type: "url_changed"; url: string }` — background → content script, on SPA navigation |
 | `AddHighlightsMessage` | `{ type: "add_highlights"; url, text, tag?, text_tag_pairs, startOffset, endOffset, color }` |
+| `UpdateNoteMessage` | `{ type: "update_note"; highlightId: string; note: string }` |
 | `GetHighlightsResponse` | `{ highlights: HighlightRecord[] } \| { error: string }` |
 | `AddHighlightsResponse` | `{ highlight: HighlightRecord } \| { error: string }` |
+| `UpdateNoteResponse` | `{ success: true } \| { error: string }` |
 
 ## Call-flow diagram
 
-Four flows: **signing in**, **creating** a highlight, **restoring** saved
-highlights on page load, and **re-rendering on SPA navigation**.
-Creating/restoring both gate on a valid session first.
+Five flows: **signing in**, **creating** a highlight, **restoring** saved
+highlights on page load, **re-rendering on SPA navigation**, and
+**adding/editing a note**. Creating/restoring both gate on a valid session
+first.
 
 ```mermaid
 flowchart TD
@@ -98,6 +109,7 @@ flowchart TD
         AUTH1 -->|valid| G2["POST /addhighlight<br/>+ Authorization header"]
         AUTH1 -->|invalid| BADGE["set toolbar badge '!'"]
         G2 --> G[(highlights collection)]
+        G2 -->|"{highlight} incl. _id"| T["tag spans data-highlight-id<br/>attachNotePopover([startSpan,endSpan], _id, '')"]
     end
 
     subgraph Restore["Restoring highlights on load"]
@@ -109,6 +121,8 @@ flowchart TD
         I2 --> H
         H --> J["highlight_text_tag_pairs(element)<br/>(displayHistory.ts)"]
         J --> K["indexOfAll()<br/>(util.ts)"]
+        J --> L["surroundContents(...)<br/>(paint.ts, shared)"]
+        L --> M["tag spans, attachNotePopover(..., element.note)"]
     end
 
     subgraph SPA["Re-rendering on SPA navigation"]
@@ -118,5 +132,18 @@ flowchart TD
         P --> R["displayHistory.ts<br/>onMessage listener"]
         R --> S["isUrlChangedMessage(message)<br/>(lib/urlChange.ts)"]
         S -->|true, after 300ms settle| H
+    end
+
+    subgraph Notes["Adding / editing a note"]
+        U["mouseenter on trigger span<br/>(notePopover.ts)"] --> V["show preview:<br/>sanitizeNoteHtml(note) or '+ Add note'"]
+        V -->|click| W["enter edit mode:<br/>contenteditable + B/I/U toolbar"]
+        W -->|focusout, not mouseleave| X["sanitizeNoteHtml(box.innerHTML)"]
+        X -->|unchanged| V
+        X -->|changed| Y["'update_note' message"]
+        Y --> Z["background.ts<br/>handleUpdateNote"]
+        Z --> AUTH3["ensureFreshSession()"]
+        AUTH3 -->|valid| Z2["PATCH /highlights/:id<br/>+ Authorization header"]
+        AUTH3 -->|invalid| BADGE
+        Z2 --> G
     end
 ```

@@ -22,7 +22,7 @@ export interface TextNodeEntry {
 }
 
 export interface HighlightRecord {
-  id?: number | string;
+  _id: string;
   text: string;
   tag?: string;
   text_tag_pairs: TextTagPair[];
@@ -30,6 +30,7 @@ export interface HighlightRecord {
   endOffset: number;
   color?: string;
   url?: string;
+  note?: string;
 }
 
 export type GetHighlightsMessage = {
@@ -42,6 +43,16 @@ export type UrlChangedMessage = {
   url: string;
 };
 
+export type UpdateNoteMessage = {
+  type: "update_note";
+  highlightId: string;
+  note: string;
+};
+
+export type UpdateNoteResponse =
+  | { success: true; error?: undefined }
+  | { error: string; success?: undefined };
+
 export type AddHighlightsMessage = {
   type: "add_highlights";
   url: string;
@@ -53,7 +64,10 @@ export type AddHighlightsMessage = {
   color: string;
 };
 
-export type ExtensionMessage = GetHighlightsMessage | AddHighlightsMessage;
+export type ExtensionMessage =
+  | GetHighlightsMessage
+  | AddHighlightsMessage
+  | UpdateNoteMessage;
 
 export type GetHighlightsResponse =
   | { highlights: HighlightRecord[]; error?: undefined }

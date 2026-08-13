@@ -6,6 +6,8 @@ import type {
   AddHighlightsMessage,
   AddHighlightsResponse,
   UrlChangedMessage,
+  UpdateNoteMessage,
+  UpdateNoteResponse,
 } from "./types.js";
 
 console.log("loaded");
@@ -117,12 +119,52 @@ function handleAddHighlights(
   return true;
 }
 
+function handleUpdateNote(
+  message: UpdateNoteMessage,
+  _sender: chrome.runtime.MessageSender,
+  senderResponse: (response: UpdateNoteResponse) => void,
+): true {
+  (async () => {
+    const session = await ensureFreshSession();
+    if (!session) {
+      setAuthBadge();
+      senderResponse({ error: "auth_required" });
+      return;
+    }
+
+    const url = new URL(
+      `http://localhost:3000/highlights/${message.highlightId}`,
+    );
+    try {
+      const response = await fetch(url, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.sessionToken}`,
+        },
+        body: JSON.stringify({ note: message.note }),
+      });
+      if (!response.ok) throw new Error("Network response was not ok");
+      clearAuthBadge();
+      senderResponse({ success: true });
+    } catch (err) {
+      senderResponse({
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  })();
+  return true;
+}
+
 chrome.runtime.onMessage.addListener((message, sender, senderResponse) => {
   if (message.type === "get_highlights") {
     return handleGetHighlights(message, sender, senderResponse);
   }
   if (message.type === "add_highlights") {
     return handleAddHighlights(message, sender, senderResponse);
+  }
+  if (message.type === "update_note") {
+    return handleUpdateNote(message, sender, senderResponse);
   }
   return true;
 });
