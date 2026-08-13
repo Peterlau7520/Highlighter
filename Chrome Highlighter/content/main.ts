@@ -1,8 +1,14 @@
 console.log("content.js is alive");
 
 import { highlight } from "./paint.js";
+import { isEventInsideNotePopover } from "./notePopover.js";
 
-document.addEventListener("mouseup", async () => {
+document.addEventListener("mouseup", async (e) => {
+  // Selecting/editing text inside our own note popover isn't a page
+  // selection to offer highlighting on — skip it, otherwise the
+  // color-picker tooltip pops up on top of the note editor.
+  if (isEventInsideNotePopover(e.target)) return;
+
   await new Promise((resolve) => setTimeout(resolve, 2));
 
   const selection = window.getSelection();

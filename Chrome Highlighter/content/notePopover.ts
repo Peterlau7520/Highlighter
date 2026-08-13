@@ -1,6 +1,7 @@
 import { sanitizeNoteHtml } from "../lib/sanitizeNote.js";
 import type { UpdateNoteResponse } from "../types.js";
 
+const POPOVER_ID = "my-ext-note-popover";
 const HIDE_GRACE_MS = 150;
 const FONT_FAMILY =
   '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
@@ -69,7 +70,7 @@ export function attachNotePopover(
   function showPreview(target: HTMLElement): void {
     if (popover) return;
     const div = document.createElement("div");
-    div.id = "my-ext-note-popover";
+    div.id = POPOVER_ID;
     div.style.cssText =
       `z-index:999999;background:#fff;color:#222;border:1px solid #e2e2e2;` +
       `border-radius:8px;padding:8px 10px;font:13px/1.4 ${FONT_FAMILY};` +
@@ -194,4 +195,15 @@ export function attachNotePopover(
     });
     trigger.addEventListener("mouseleave", scheduleHide);
   });
+}
+
+/**
+ * Whether an event target is inside the note popover (preview or edit
+ * mode). Used by content/main.ts to skip its page-wide `mouseup` handler
+ * when a selection happens inside our own injected UI rather than real
+ * page content — otherwise selecting/editing note text would also pop up
+ * the highlight color-picker tooltip on top of it.
+ */
+export function isEventInsideNotePopover(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest(`#${POPOVER_ID}`) !== null;
 }
