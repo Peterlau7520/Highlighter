@@ -1,6 +1,12 @@
-import type { HighlightRecord, GetHighlightsResponse } from "../types.js";
+import type {
+  HighlightRecord,
+  GetHighlightsResponse,
+  TextNodeEntry,
+} from "../types.js";
 import { indexOfAll } from "./util.js";
 import { isUrlChangedMessage } from "../lib/urlChange.js";
+import { surroundContents } from "./paint.js";
+import { attachNotePopover } from "./notePopover.js";
 
 // SPA frameworks typically finish updating the DOM asynchronously *after*
 // the URL changes, so wait briefly before re-scanning the page (main.ts's
@@ -81,33 +87,29 @@ function highlight_text_tag_pairs(
       }
 
       if (count === text_tag_pairs.length) {
-        const startRange: Range = document.createRange();
-        startRange.setStart(nodes[i], startOffset);
-        startRange.setEnd(
-          nodes[i],
-          startOffset + text_tag_pairs[0].text.length,
+        // Use the stored, pre-trimmed text_tag_pairs[k].text — NOT the
+        // current DOM node's full textContent. extractTextTagPairs()
+        // trimmed text_tag_pairs[0].text down to `fullText.slice(startOffset)`
+        // at creation time specifically so that surroundContents() can
+        // compute `startOffset + text_nodes[0].text.length` as the node's
+        // true end boundary. Feeding it the untrimmed textContent instead
+        // overshoots that boundary by `startOffset` characters.
+        const matchedNodes: TextNodeEntry[] = nodes
+          .slice(i, i + count)
+          .map((node, k) => ({ node: node as Text, text: text_tag_pairs[k].text }));
+
+        const { startSpan, endSpan, middleElements } = surroundContents(
+          matchedNodes,
+          startOffset,
+          endOffset,
+          color,
         );
-        const startSpan = document.createElement("span");
-        startSpan.style.backgroundColor = color;
 
-        const endRange: Range = document.createRange();
-        endRange.setStart(
-          nodes[i + count - 1],
-          text_tag_pairs.length > 1 ? 0 : startOffset,
-        );
-        endRange.setEnd(nodes[i + count - 1], endOffset);
-        const endSpan = document.createElement("span");
-        endSpan.style.backgroundColor = color;
-
-        startRange.surroundContents(startSpan);
-        endRange.surroundContents(endSpan);
-
-        for (let k = i + 1; k < i + count - 1; k++) {
-          const parent = nodes[k].parentElement;
-          if (parent) parent.style.backgroundColor = color;
-        }
-
-        // wrap the whole range with tooltip..
+        const triggers = [startSpan, endSpan, ...middleElements];
+        triggers.forEach((el) => {
+          el.dataset.highlightId = element._id;
+        });
+        attachNotePopover(triggers, element._id, element.note ?? "");
 
         break;
       }

@@ -12,8 +12,14 @@
   },
   "devDependencies": {
     "@types/chrome": "^0.0.320",
+    "@types/dompurify": "^3.0.5",
+    "@types/jsdom": "^30.0.0",
     "esbuild": "^0.28.1",
+    "jsdom": "^29.1.1",
     "typescript": "^5.8.3",
     "vitest": "^4.1.10"
+  },
+  "dependencies": {
+    "dompurify": "^3.4.13"
   }
 }
