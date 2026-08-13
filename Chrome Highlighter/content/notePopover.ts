@@ -2,7 +2,7 @@ import { sanitizeNoteHtml } from "../lib/sanitizeNote.js";
 import type { UpdateNoteResponse } from "../types.js";
 
 const POPOVER_ID = "my-ext-note-popover";
-const HIDE_GRACE_MS = 150;
+const HIDE_GRACE_MS = 50;
 const FONT_FAMILY =
   '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
 const FORMAT_COMMANDS = [
@@ -74,7 +74,8 @@ export function attachNotePopover(
     div.style.cssText =
       `z-index:999999;background:#fff;color:#222;border:1px solid #e2e2e2;` +
       `border-radius:8px;padding:8px 10px;font:13px/1.4 ${FONT_FAMILY};` +
-      `max-width:240px;box-shadow:0 4px 16px rgba(0,0,0,0.14);cursor:text;` +
+      `max-width:240px;box-sizing:border-box;box-shadow:0 4px 16px rgba(0,0,0,0.14);` +
+      `cursor:text;white-space:normal;overflow-wrap:break-word;word-break:break-word;` +
       `opacity:0;transition:opacity 120ms ease-out;`;
     div.innerHTML = note
       ? sanitizeNoteHtml(note)
@@ -97,12 +98,14 @@ export function attachNotePopover(
   }
 
   function refreshToolbarState(toolbar: HTMLDivElement): void {
-    toolbar.querySelectorAll<HTMLButtonElement>("button[data-command]").forEach((button) => {
-      const command = button.dataset.command;
-      const active = !!command && document.queryCommandState(command);
-      button.style.background = active ? "#dbe6ff" : "transparent";
-      button.style.borderColor = active ? "#8fb3ff" : "#d8d8d8";
-    });
+    toolbar
+      .querySelectorAll<HTMLButtonElement>("button[data-command]")
+      .forEach((button) => {
+        const command = button.dataset.command;
+        const active = !!command && document.queryCommandState(command);
+        button.style.background = active ? "#dbe6ff" : "transparent";
+        button.style.borderColor = active ? "#8fb3ff" : "#d8d8d8";
+      });
   }
 
   function enterEditMode(container: HTMLDivElement): void {
@@ -138,9 +141,10 @@ export function attachNotePopover(
     const box = document.createElement("div");
     box.contentEditable = "true";
     box.style.cssText =
-      `min-width:180px;min-height:44px;font:13px/1.4 ${FONT_FAMILY};` +
-      "outline:none;border:1px solid #d8d8d8;border-radius:4px;" +
-      "padding:6px;background:#fff;";
+      `min-width:180px;max-width:100%;min-height:44px;box-sizing:border-box;` +
+      `font:13px/1.4 ${FONT_FAMILY};outline:none;border:1px solid #d8d8d8;` +
+      "border-radius:4px;padding:6px;background:#fff;white-space:normal;" +
+      "overflow-wrap:break-word;word-break:break-word;";
     box.innerHTML = sanitizeNoteHtml(note);
     box.addEventListener("mouseup", () => refreshToolbarState(toolbar));
     box.addEventListener("keyup", () => refreshToolbarState(toolbar));

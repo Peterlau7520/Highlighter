@@ -87,9 +87,16 @@ function highlight_text_tag_pairs(
       }
 
       if (count === text_tag_pairs.length) {
+        // Use the stored, pre-trimmed text_tag_pairs[k].text — NOT the
+        // current DOM node's full textContent. extractTextTagPairs()
+        // trimmed text_tag_pairs[0].text down to `fullText.slice(startOffset)`
+        // at creation time specifically so that surroundContents() can
+        // compute `startOffset + text_nodes[0].text.length` as the node's
+        // true end boundary. Feeding it the untrimmed textContent instead
+        // overshoots that boundary by `startOffset` characters.
         const matchedNodes: TextNodeEntry[] = nodes
           .slice(i, i + count)
-          .map((node) => ({ node: node as Text, text: node.textContent ?? "" }));
+          .map((node, k) => ({ node: node as Text, text: text_tag_pairs[k].text }));
 
         const { startSpan, endSpan } = surroundContents(
           matchedNodes,
