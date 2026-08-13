@@ -1,22 +1,57 @@
-### Building and running your application
+# Backend
 
-When you're ready, start your application by running:
-`docker compose up --build`.
+## Environment variables
 
-Your application will be available at http://localhost:3000.
+Create a `backend/.env` file before starting (never commit it — it's
+already in `.gitignore`):
 
-### Deploying your application to the cloud
+```
+MONGO_URI=mongodb://...
+JWT_SECRET=your-secret-here
+PORT=3000
+```
 
-First, build your image, e.g.: `docker build -t myapp .`.
-If your cloud uses a different CPU architecture than your development
-machine (e.g., you are on a Mac M1 and your cloud provider is amd64),
-you'll want to build the image for that platform, e.g.:
-`docker build --platform=linux/amd64 -t myapp .`.
+`MONGO_URI` can point at a local MongoDB or an Atlas cluster.
+`JWT_SECRET` signs the session tokens issued by `POST /auth/google` — use
+a long random value, e.g. `node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"`.
 
-Then, push it to your registry, e.g. `docker push myregistry.com/myapp`.
+The extension's `lib/auth.ts` and `background.ts` are both hardcoded to
+`http://localhost:3000` — no extra config needed for local development.
 
-Consult Docker's [getting started](https://docs.docker.com/go/get-started-sharing/)
-docs for more detail on building and pushing.
+## Running locally (fastest for iteration)
 
-### References
-* [Docker's Node.js guide](https://docs.docker.com/language/nodejs/)
+```bash
+cd backend
+npm install
+npm run dev
+```
+
+`npm run dev` runs `node --watch index.js` — the server restarts
+automatically on every save. The API is then available at
+`http://localhost:3000`.
+
+## Running via Docker
+
+```bash
+docker compose up --build
+```
+
+The API will be available at `http://localhost:3000`, same as above. Slower
+to iterate with (full image rebuild per change) but closer to how it'd
+actually run in production — useful for verifying the Dockerfile itself,
+or if you don't have Node installed locally.
+
+## Building for deployment
+
+```bash
+# Match your cloud provider's CPU architecture (e.g. amd64 on a Mac M-series):
+docker build --platform=linux/amd64 -t chrome-highlighter-backend .
+
+docker push myregistry.com/chrome-highlighter-backend
+```
+
+See Docker's [getting started](https://docs.docker.com/go/get-started-sharing/) docs for registry details.
+
+## References
+
+- [Docker's Node.js guide](https://docs.docker.com/language/nodejs/)

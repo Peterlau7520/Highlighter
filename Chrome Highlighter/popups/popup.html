@@ -1,38 +1,49 @@
-<!-- turn on     "default_popup": "popups/popup.html", in manifest  -->
-
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
+    <title>Highlighter</title>
     <style>
+      body {
+        min-width: 240px;
+      }
       .center {
         min-height: 100px;
-        min-width: 200px;
         display: grid;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         gap: 1ch;
+        text-align: center;
       }
       .text {
-        font-size: 1rem;
-        font-weight: bold;
+        font-size: 0.9rem;
         color: black;
+      }
+      button {
+        font-size: 0.9rem;
+        padding: 6px 12px;
+        cursor: pointer;
+      }
+      #status {
+        font-weight: bold;
       }
     </style>
   </head>
   <body>
     <h2>Highlighter</h2>
     <div class="center">
+      <span id="status" class="text">Checking sign-in status…</span>
+      <button id="signin-btn" hidden>Sign in with Google</button>
+      <button id="signout-btn" hidden>Sign out</button>
       <span class="text"
-        >Please select any text you like and then wait for the highlight button
-        to appear!</span
+        >Once signed in, select any text on a page and wait for the highlight
+        button to appear!</span
       >
     </div>
   </body>
 </html>
-<!-- popup.html -->
-<script src="popup.js"></script>
+<!-- popup.html type=module alllows ES6 import statements-->
+<script type="module" src="popup.js"></script>
